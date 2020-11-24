@@ -1,2 +1,2 @@
 # subscoper
-Bash wrapper that search a list of targets for the presence of subdomains.
+Bash wrapper that searches a list of targets for related subdomains.

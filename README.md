@@ -3,8 +3,8 @@ Bash wrapper that searches a list of targets for related subdomains.
 
 Information:
 ---------------
-The script automatically search SSL Certificates for a provided list of hosts and retrieve any domains specified under the X509 "Subject Common Name".  
-Using the Sublist3r tool, the script retrieves a list of existing subdomains and checks which of these are pointing at the hosts provided.   
+The script automatically search SSL Certificates for a provided list of hosts and retrieve any domains specified under the X509 "Subject Common Name".
+Using the Sublist3r tool, the script then retrieves a list of existing subdomains and checks which of these are pointing at the hosts provided.   
   
 Alternatively, if a list of subdomains is provided (-s option), the script only verify which of these are pointing at the hosts provided.  
   

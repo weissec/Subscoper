@@ -1,12 +1,6 @@
 #!/bin/bash
 
-# subscoper v1.1
-
-# This script takes one input parameter, a list of hosts
-# The script will scan for common ports that use SSL/TLS and retrieve the domain from the certificate
-# The script will then run sublist3r for each domain and retrieve a list of subdomains
-# The script will resolve the IP address for each subdomain and compare each one to the addresses in scope.
-# The output for the tool is a file containing only the domains in scope and relative IP address)
+# subscoper v1.2
 
 # Colors:
 red="\e[31m"
@@ -122,7 +116,7 @@ havesubs() {
 			if grep -Fq $ipadr $targets
 			then
 				plain=$(echo $solved | cut -d " " -f1)
-				echo $plain" ("$ipadr")" >> Subdomains-in-Scope.txt
+				echo $plain" ("$ipadr")" >> subdomains-in-scope.txt
 			fi
 		fi
 		i=$((i+1))
@@ -132,9 +126,9 @@ havesubs() {
 	rm .Resolved.tmp
 	echo "[+] Finished"
 
-	if [[ -e ./Subdomains-in-Scope.txt ]]; then
-		echo "[+] "$(wc -l < Subdomains-in-Scope.txt)" subdomains are in scope."
-		echo "[-] Results saved in: ./Subdomains-in-Scope.txt"
+	if [[ -e ./subdomains-in-scope.txt ]]; then
+		echo "[+] "$(wc -l < subdomains-in-scope.txt)" subdomains are in scope."
+		echo "[-] Results saved in: ./subdomains-in-scope.txt"
 	else
 		echo "[-] No subdomains found to be in scope."
 	fi
@@ -162,16 +156,31 @@ fullrun() {
 	echo "[+] Found "$tarnum" IP Address/es."
 	echo "[+] Checking X509 Certificates for domain names..."
 	echo 
+	
+	touch .domains-extract.tmp
+	touch .subdomains-extract.tmp
+	
+	count=1
 	for ips in $(cat $targets); do
-		echo -ne "\r\e[KChecking: "$ips
-		openssl s_client -connect 162.27.160.1:443 </dev/null 2>/dev/null | openssl x509 -noout -subject | awk -F. '{print $(NF-1)"."$NF}' | tr -d '[:blank:]' >> .domains-extract.tmp
+		echo -ne "\r\e[KChecking: "$count" of "$tarnum" ("$ips")"
+		timeout 3s openssl s_client -connect $ips:443 >/dev/null 2>&1 > .cert.tmp
+		if [[ $(wc -l < .cert.tmp) > 0 ]]; then
+			openssl x509 -noout -subject -in .cert.tmp | awk -F. '{print $(NF-1)"."$NF}' | tr -d '[:blank:]' >> .domains-extract.tmp
+			openssl x509 -noout -text -in .cert.tmp | grep DNS: | tr " " "\n" | cut -d ":" -f2 | cut -d "," -f1 >> .subdomains-extract.tmp
+		fi
+		((count++))
 	done
+	
 	# Cleaning file for duplicates
+	rm .cert.tmp > /dev/null 2>&1
 	sort -u .domains-extract.tmp > domains-list.txt
+	sort -u .subdomains-extract.tmp > .subdomains-list.tmp
+	rm .subdomains-extract.tmp > /dev/null 2>&1
 	rm .domains-extract.tmp > /dev/null 2>&1
 	
 	echo -e "\n\n[+] Retrieving list of subdomains..."
 	# if -b is provided than do sublist3r bruteforce
+	touch .subdomains-list-0.tmp
 	if [[ $brute == true ]]
 	then
 	    echo "[-] Using brute-force option (this could take a while)..."
@@ -190,11 +199,19 @@ fullrun() {
 	fi
 	
 	echo "[+] Consolidating results and removing temporary files..."
-	cat .subdomains-list-*.tmp >> subdomains-list.txt
+	# Fixing sublist3r output when <BR> is retrieved
+	cat .subdomains-list-*.tmp >> .subdomains-list.tmp
+	cat .subdomains-list.tmp | sed -e 's/<BR>/\n/g' | sed 's/^[*]//' | sed 's/^[.]//' | grep . >> subdomains-list.txt
 	rm .subdomains-list-*.tmp > /dev/null 2>&1
+	rm .subdomains-list.tmp > /dev/null 2>&1
 	
 	# Calling secondary function to match the IPs with the subdomains
 	subdomains="subdomains-list.txt"
+	
+	if [[ $(wc -l < subdomains-list.txt) -eq 0 ]]; then
+		echo "[+] All done for you. No domains/subdomains were found."
+		exit
+	fi
 	
 	havesubs
 	

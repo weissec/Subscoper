@@ -14,4 +14,4 @@ Requirements: sublist3r (https://github.com/aboul3la/Sublist3r.git)
 
 Screenshot:
 --------------------
-https://user-images.githubusercontent.com/44804367/100872575-eade2600-3499-11eb-807d-49669dfa2b7d.PNG
+![subscoper.sh](https://user-images.githubusercontent.com/44804367/100872575-eade2600-3499-11eb-807d-49669dfa2b7d.PNG)

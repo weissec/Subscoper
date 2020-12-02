@@ -8,8 +8,6 @@ green="\e[38;5;46m"
 normal="\e[0m"
 yellow="\e[33m"
 
-
-
 banner() {
 
 	clear
@@ -64,6 +62,9 @@ if [ ! -e $targets ]; then
 	echo -e $red"[ERROR]"$normal" The "$targets" file does not exist." 
 	exit
 fi
+
+# Sanitize the file to remove Windows Carriage Returns
+sed -i 's/\r//g' targets.txt
 
 
 havesubs() {

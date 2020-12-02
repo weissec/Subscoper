@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# subscoper v1.2
+# subscoper v1.3
 
 # Colors:
 red="\e[31m"

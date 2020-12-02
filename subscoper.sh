@@ -64,8 +64,8 @@ if [ ! -e $targets ]; then
 fi
 
 # Sanitize the file to remove Windows Carriage Returns
-sed -i 's/\r//g' targets.txt
-
+cat $targets | sed -e 's/\r//g' > .targets-hosts.tmp
+targets=".targets-hosts.tmp"
 
 havesubs() {
 

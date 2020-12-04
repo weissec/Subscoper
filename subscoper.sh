@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# subscoper v1.4
+# subscoper v1.4.1
 
 # Colors:
 red="\e[31m"
@@ -123,7 +123,7 @@ havesubs() {
 			if grep -Fq $ipadr $targets
 			then
 				plain=$(echo $solved | cut -d " " -f1)
-				echo $plain" ("$ipadr")" >> ./Subscoper-Results/.subdomains-in-scope.tmp
+				echo $plain","$ipadr >> ./Subscoper-Results/.subdomains-in-scope.tmp
 			fi
 		fi
 		i=$((i+1))
@@ -132,12 +132,12 @@ havesubs() {
 	echo -e "\n\n[+] Removing temporary files.."
 	rm ./Subscoper-Results/Resolved.tmp > /dev/null 2>&1
 	rm ./Subscoper-Results/.targets-hosts.tmp > /dev/null 2>&1
-	sort -u ./Subscoper-Results/.subdomains-in-scope.tmp > ./Subscoper-Results/subdomains-in-scope.txt
+	sort -u ./Subscoper-Results/.subdomains-in-scope.tmp > ./Subscoper-Results/subdomains-in-scope.csv
 	rm ./Subscoper-Results/.subdomains-in-scope.tmp > /dev/null 2>&1
 	echo "[+] Finished"
 
-	if [[ -e ./Subscoper-Results/subdomains-in-scope.txt ]]; then
-		echo "[+] "$(wc -l < ./Subscoper-Results/subdomains-in-scope.txt)" subdomains are in scope."
+	if [[ -e ./Subscoper-Results/subdomains-in-scope.csv ]]; then
+		echo "[+] "$(wc -l < ./Subscoper-Results/subdomains-in-scope.csv)" subdomains are in scope."
 		echo "[-] Results saved in Subscoper-Results folder."
 	else
 		echo "[-] No subdomains found to be in scope."

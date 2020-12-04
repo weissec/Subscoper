@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# subscoper v1.4.1
+# subscoper v1.4.2
 
 # Colors:
 red="\e[31m"
@@ -219,6 +219,7 @@ fullrun() {
 	    	((i++))
 	    done
 	fi
+	echo
 	echo
 	echo "[+] Consolidating results and removing temporary files..."
 	# Fixing sublist3r output when <BR> is retrieved

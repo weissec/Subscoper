@@ -10,9 +10,9 @@ Alternatively, if a list of subdomains is provided (-s option), the script only 
   
 Note: The -b argument can be passed to the script to use the brute-force module in sublist3r.
 
-###Requirements:### sublist3r (https://github.com/aboul3la/Sublist3r.git)  
-###Limitation:### Currently the script only checks for certificates on port 443/tcp.  
-###Why use it:### Useful during an external infrastrcuture assessment to discover web applications hosted on the servers in scope.  
+**Requirements:** sublist3r (https://github.com/aboul3la/Sublist3r.git)  
+**Limitation:** Currently the script only checks for certificates on port 443/tcp.  
+**Why use it:** Useful during an external infrastrcuture assessment to discover web applications hosted on the servers in scope.  
 
 Screenshot:
 --------------------

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# subscoper v1.4.2
+# subscoper v1.4.3
 
 # Colors:
 red="\e[31m"
@@ -132,7 +132,9 @@ havesubs() {
 	echo -e "\n\n[+] Removing temporary files.."
 	rm ./Subscoper-Results/Resolved.tmp > /dev/null 2>&1
 	rm ./Subscoper-Results/.targets-hosts.tmp > /dev/null 2>&1
-	sort -u ./Subscoper-Results/.subdomains-in-scope.tmp > ./Subscoper-Results/subdomains-in-scope.csv
+	if [[ -f "./Subscoper-Results/.subdomains-in-scope.tmp" ]]; then
+		sort -u ./Subscoper-Results/.subdomains-in-scope.tmp > ./Subscoper-Results/subdomains-in-scope.csv
+	fi
 	rm ./Subscoper-Results/.subdomains-in-scope.tmp > /dev/null 2>&1
 	echo "[+] Finished"
 

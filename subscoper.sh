@@ -148,12 +148,22 @@ havesubs() {
 }
 
 fullrun() {
-
+	
+	lister="1"
 	# Checking if sublist3r is installed:
 	if ! which sublist3r >/dev/null; then
-    		banner
-		echo -e $red"[ERROR]"$normal" Sublist3r is required for this tool to work (https://github.com/aboul3la/Sublist3r.git)"
-		exit
+    	banner
+		echo -e $red"[ERROR]"$normal" Sublist3r not found (https://github.com/aboul3la/Sublist3r.git)"
+		echo "Enter the Sublist3r path (e.g. /opt/Sublist3r/sublist3r.py"
+		read file1
+		if [ -f "$file1" ]
+			then
+				echo "Sublist3r found."
+				lister="2"
+			else
+				echo "Couldn't find Sublist3r at the specified path, sorry."
+			exit
+		fi
 	fi
 	
 	tarnum=$(wc -l < $targets)
@@ -198,29 +208,57 @@ fullrun() {
 	sort -u ./Subscoper-Results/.domains-list.tmp > ./Subscoper-Results/domains-list.txt
 	domnum=$(wc -l < ./Subscoper-Results/domains-list.txt)
 	echo -e "\n\n[+] Retrieving list of subdomains..."
-	
-	# if -b is provided than do sublist3r bruteforce
-	touch ./Subscoper-Results/.subdomains-list-0.tmp
-	if [[ $brute == true ]]
-	then
-	    echo "[-] Using brute-force option (this could take a while)..."
-	    echo
-	    i=1
-	    for dom in $(cat ./Subscoper-Results/domains-list.txt); do
-	    	echo -ne "\r\e[KChecking: "$i" of "$domnum
-	    	sublist3r -d $dom -b -o ./Subscoper-Results/.subdomains-list-$i.tmp > /dev/null 2>&1
-	    	((i++))
-	    done
+
+	if [ $lister == "1" ]; then
+		# if -b is provided than do sublist3r bruteforce
+		touch ./Subscoper-Results/.subdomains-list-0.tmp
+		if [[ $brute == true ]]
+		then
+			echo "[-] Using brute-force option (this could take a while)..."
+			echo
+			i=1
+			for dom in $(cat ./Subscoper-Results/domains-list.txt); do
+				echo -ne "\r\e[KChecking: "$i" of "$domnum
+				sublist3r -d $dom -b -o ./Subscoper-Results/.subdomains-list-$i.tmp > /dev/null 2>&1
+				((i++))
+			done
+		else
+			echo "[-] Running passive checks on popular search engines (this can take a while)..."
+			echo
+			i=1
+			for dom in $(cat ./Subscoper-Results/domains-list.txt); do
+				echo -ne "\r\e[KChecking: "$i" of "$domnum
+				sublist3r -d $dom -o ./Subscoper-Results/.subdomains-list-$i.tmp > /dev/null 2>&1
+				((i++))
+			done
+		fi
+	elif [ $lister == "2" ]; then
+		# if -b is provided than do sublist3r bruteforce
+		touch ./Subscoper-Results/.subdomains-list-0.tmp
+		if [[ $brute == true ]]
+		then
+			echo "[-] Using brute-force option (this could take a while)..."
+			echo
+			i=1
+			for dom in $(cat ./Subscoper-Results/domains-list.txt); do
+				echo -ne "\r\e[KChecking: "$i" of "$domnum
+				$file1 -d $dom -b -o ./Subscoper-Results/.subdomains-list-$i.tmp > /dev/null 2>&1
+				((i++))
+			done
+		else
+			echo "[-] Running passive checks on popular search engines (this can take a while)..."
+			echo
+			i=1
+			for dom in $(cat ./Subscoper-Results/domains-list.txt); do
+				echo -ne "\r\e[KChecking: "$i" of "$domnum
+				$file1 -d $dom -o ./Subscoper-Results/.subdomains-list-$i.tmp > /dev/null 2>&1
+				((i++))
+			done
+		fi
 	else
-	    echo "[-] Running passive checks on popular search engines (this can take a while)..."
-	    echo
-	    i=1
-	    for dom in $(cat ./Subscoper-Results/domains-list.txt); do
-	    	echo -ne "\r\e[KChecking: "$i" of "$domnum
-	    	sublist3r -d $dom -o ./Subscoper-Results/.subdomains-list-$i.tmp > /dev/null 2>&1
-	    	((i++))
-	    done
+		exit
 	fi
+	
 	echo
 	echo
 	echo "[+] Consolidating results and removing temporary files..."

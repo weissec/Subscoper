@@ -20,3 +20,6 @@ Screenshot:
 
 **To Do:**
 - Automatically retrieve domain names from other services and ports (HTTP,SMTP,IMAP,POP3,RDP...)
+- Add a check for Virtual Hosts
+- Issue: nslookup seems to miss some IPs, domains resolve to different IPs than when pinging manually, creating false results.
+- Double domains issue: whe domain is like test.org.uk, or test.co.uk, the lookup is for "org.uk" (wrong results)

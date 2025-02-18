@@ -14,6 +14,16 @@ Note: The -b argument can be passed to the script to use the brute-force module 
 **Limitation:** Currently the script automatically retrieve initial domains from SSL-TLS certificates on port 443/tcp only.  
 **Why use it:** Useful during an external infrastrcuture assessment to discover applications and services hosted on the servers in scope.  
 
+### Usage
+Provide a list of IP addresses/ranges:
+`bash subscoper.sh -t targets.txt`
+
+With subdomain list:
+`bash subscoper.sh -t targets.txt -s subdomains.txt`
+
+Brute-force mode (when using Sublist3r):
+`bash subscoper.sh -t targets.txt -b`
+
 Screenshot:
 --------------------
 ![subscoper.sh](https://user-images.githubusercontent.com/44804367/100872575-eade2600-3499-11eb-807d-49669dfa2b7d.PNG)

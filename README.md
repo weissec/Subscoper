@@ -36,7 +36,6 @@ git clone https://github.com/aboul3la/Sublist3r.git
 export PATH=$PATH:/path/to/Sublist3r/
 ```
 
-Screenshot:
---------------------
-![subscoper.sh](https://user-images.githubusercontent.com/44804367/100872575-eade2600-3499-11eb-807d-49669dfa2b7d.PNG)
+### Example Results
+
 

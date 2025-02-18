@@ -25,12 +25,13 @@ Brute-force mode (when using Sublist3r):
 ### Requirements
 The tool requires the following dependancies:
 - dig (from dnsutils)
+- nmap
 - openssl
 - sublist3r (https://github.com/aboul3la/Sublist3r)
 
 You can install them with:
 ```
-sudo apt install dnsutils openssl
+sudo apt install dnsutils openssl nmap
 git clone https://github.com/aboul3la/Sublist3r.git
 export PATH=$PATH:/path/to/Sublist3r/
 ```

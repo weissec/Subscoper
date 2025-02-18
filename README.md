@@ -1,5 +1,5 @@
-# SUBSCOPER
-Bash wrapper that searches a list of targets for related subdomains.
+# Subscoper
+Bash wrapper that finds domains/subdomains pointing to a list of given IP addresses.
 
 Information:
 ---------------
@@ -28,8 +28,3 @@ Screenshot:
 --------------------
 ![subscoper.sh](https://user-images.githubusercontent.com/44804367/100872575-eade2600-3499-11eb-807d-49669dfa2b7d.PNG)
 
-**To Do:**
-- Automatically retrieve domain names from other services and ports (HTTP,SMTP,IMAP,POP3,RDP...)
-- Add a check for Virtual Hosts
-- Issue: nslookup seems to miss some IPs, domains resolve to different IPs than when pinging manually, creating false results.
-- Double domains issue: whe domain is like test.org.uk, or test.co.uk, the lookup is for "org.uk" (wrong results)

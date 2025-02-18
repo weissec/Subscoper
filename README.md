@@ -10,9 +10,7 @@ Alternatively, if a list of subdomains is provided (-s option), the script only 
   
 Note: The -b argument can be passed to the script to use the brute-force module in sublist3r.
 
-**Requirements:** sublist3r (https://github.com/aboul3la/Sublist3r.git)  
-**Limitation:** Currently the script automatically retrieve initial domains from SSL-TLS certificates on port 443/tcp only.  
-**Why use it:** Useful during an external infrastrcuture assessment to discover applications and services hosted on the servers in scope.  
+**Why?** Useful during an external infrastrcuture assessment to discover web applications and services hosted on a list of given IP addresses in scope.  
 
 ### Usage
 Provide a list of IP addresses/ranges:
@@ -23,6 +21,19 @@ With subdomain list:
 
 Brute-force mode (when using Sublist3r):
 `bash subscoper.sh -t targets.txt -b`
+
+### Requirements
+The tool requires the following dependancies:
+- dig (from dnsutils)
+- openssl
+- sublist3r (https://github.com/aboul3la/Sublist3r)
+
+You can install them with:
+```
+sudo apt install dnsutils openssl
+git clone https://github.com/aboul3la/Sublist3r.git
+export PATH=$PATH:/path/to/Sublist3r/
+```
 
 Screenshot:
 --------------------

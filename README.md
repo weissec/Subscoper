@@ -37,5 +37,39 @@ export PATH=$PATH:/path/to/Sublist3r/
 ```
 
 ### Example Results
+```
+           _                                   
+ ___ _   _| |__  ___  ___ ___  _ __   ___ _ __ 
+/ __| | | | '_ \/ __|/ __/ _ \| '_ \/ _ \ '__|
+\__ \ |_| | |_) \__ \ (_| (_) | |_) |  __/ |   
+|___/\__,_|_.__/|___/\___\___/| .__/ \___|_| by w315 
+                              |_|       
 
+[+] Processing targets from file: targets.txt
 
+Detected input:
+Input entries:    2
+Valid targets:    2 (2 IP(s), 0 CIDR range(s))
+Invalid entries:  0
+Total final IPs:  2
+
+[+] Checking SSL certificates...
+[-] Processing IP Address: 2/2 - 10.10.10.2
+[-] Root domains saved to: ./Subscoper-Results/domains.txt
+
+[+] Performing subdomain enumeration..
+[-] Processing Domain: domain.co.uk
+[-] Processing Domain: domain.com
+
+Domain enumeration results:
+Root domains found:  2
+Subdomains found:    32
+
+[+] Matching domains/subdomains with provided IP addresses/ranges..
+[-] Resolving domain/subdomain: 34 of 34
+[-] Found 2 subdomain(s) matching the IP addresses provided
+subdomain.domain.co.uk              10.10.10.1
+subdomain.domain.com                10.10.10.2
+
+[+] Results saved to: ./Subscoper-Results/subscoper-results.csv
+```

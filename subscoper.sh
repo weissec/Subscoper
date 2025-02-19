@@ -1,298 +1,263 @@
 #!/bin/bash
 
-# subscoper v1.4.3
+# subscoper v2.2 - Stable Version
 
-# Colors:
+# Colors
 red="\e[31m"
 green="\e[38;5;46m"
-normal="\e[0m"
 yellow="\e[33m"
+normal="\e[0m"
+
+# Configuration
+RESULTS_DIR="./Subscoper-Results"
+TEMP_DIR="$RESULTS_DIR/tmp"
+
+# Cleanup function
+cleanup() {
+    if [ -d "$TEMP_DIR" ]; then
+        rm -rf "$TEMP_DIR" 2>/dev/null
+    fi
+}
+
+trap cleanup EXIT
 
 banner() {
-
-	clear
-	echo -e $green"           _                                   "
-	echo -e " ___ _   _| |__  ___  ___ ___  _ __   ___ _ __ "
-	echo -e "/ __| | | | '_ \/ __|/ __/ _ \| '_ \ / _ \ '__|"
-	echo -e "\__ \ |_| | |_) \__ \ (_| (_) | |_) |  __/ |   "
-	echo -e "|___/\__,_|_.__/|___/\___\___/| .__/ \___|_| by w315 "
-	echo -e "                              |_|       "
-	echo -e $normal
-
+    echo -e "${green}           _                                   "
+    echo -e " ___ _   _| |__  ___  ___ ___  _ __   ___ _ __ "
+    echo -e "/ __| | | | '_ \/ __|/ __/ _ \| '_ \/ _ \ '__|"
+    echo -e "\__ \ |_| | |_) \__ \ (_| (_) | |_) |  __/ |   "
+    echo -e "|___/\__,_|_.__/|___/\___\___/| .__/ \___|_| by w315 "
+    echo -e "                              |_|       ${normal}"
+    echo
 }
 
 usage() {
-
-	banner
-	echo -e $green"Option 1: a list of IP addresses is provided"$normal
-	echo "- Automatically checks if any domains/subdomains resolve to the IPs provided."
-	echo
-	echo -e $green"Option 2: a list of IP addresses and a list of subdomains are provided"$normal
-	echo "- Compare the two lists and verify which subdomains are related to the IPs."
-	echo
-	echo -e $green"Usage:"$normal" ./subscoper.sh -t IPs.txt"
-	echo "       ./subscoper.sh -s subdomains.txt -t IPs.txt"
-	echo
-	echo -e $green"Option:       Description:"$normal
-	echo " -s           Path of file containing subdomains (optional)"
-	echo " -t           Path of file containing targets (required)"
-	echo " -b           Use bruteforce for subdomains discovery (optional)"
-	echo " -h           Display this help message"
-	echo
+    banner
+    echo -e "${green}Usage:${normal}"
+    echo "  ./subscoper.sh -t targets.txt"
+    echo "  ./subscoper.sh -t targets.txt -s subdomains.txt"
+    echo
+    echo -e "${green}Options:${normal}"
+    echo "  -t  File path to list of IP addresses/ranges (required)"
+    echo "  -s  File path to subdomains file (optional)"
+    echo "  -b  Enable bruteforce subdomain discovery (slow)"
+    echo "  -h  Show this help message"
+    echo
 }
 
-while getopts "h:s:t:b" option; do
-	case "${option}" in
-    		s) subdomains=${OPTARG};;
-		t) targets=${OPTARG};;
-		b) brute=true;;
-	    	h) usage; exit;;
-	    	*) usage; exit;;
- 	esac
+validate_ip() {
+    [[ "$1" =~ ^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$ ]]
+}
+
+process_targets() {
+    local input_file=$1
+    local output_file="$TEMP_DIR/processed-targets.txt"
+    local invalid=0 cidr=0 single=0
+    mkdir -p "$TEMP_DIR"
+    echo -e "${green}[+]${normal} Processing targets from file: $input_file"
+    local total=$(wc -l < "$input_file")
+    while IFS= read -r line; do
+        line=$(tr -d '\r' <<< "$line" | sed -e 's/#.*//' -e 's/[[:space:]]*$//')
+        [ -z "$line" ] && continue
+        
+        if validate_ip "$line"; then
+            if [[ "$line" == */* ]]; then
+                nmap -sL -n "$line" 2>/dev/null | 
+                awk '/Nmap scan report/{print $NF}' | 
+                grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}$' >> "$output_file"
+                ((cidr++))
+            else
+                echo "$line" >> "$output_file"
+                ((single++))
+            fi
+        else
+            echo -e "${yellow}[WARNING]${normal} Invalid target: $line"
+            ((invalid++))
+        fi
+    done < "$input_file"
+    
+    sort -uV "$output_file" > "${output_file}.sorted"
+    mv "${output_file}.sorted" "$output_file"
+    
+    local unique=$(wc -l < "$output_file")
+    echo -e "\n${green}Detected input:${normal}"
+    echo -e "Input entries:    $total"
+    echo -e "Valid targets:    $((cidr + single)) (${single} IP(s), ${cidr} CIDR range(s))"
+    echo -e "Invalid entries:  $invalid"
+    echo -e "Total final IPs:  $unique"
+    echo
+}
+
+resolve_subdomains() {
+    # Declare all variables as local
+    local collected_file=$1
+    local target_file="$TEMP_DIR/processed-targets.txt"
+    local output_file="$RESULTS_DIR/subscoper-results.csv"
+    local domain ip ips
+    local totaldoms=$(wc -l < $collected_file)
+    local processed=1
+    mkdir -p "$RESULTS_DIR" # CHECK THIS
+    : > "$output_file"  # Clear previous results
+    
+    echo -e "\n${green}[+]${normal} Matching domains/subdomains with provided IP addresses/ranges.."
+    
+    while IFS= read -r domain; do
+        ips=$(dig +short "$domain" | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}$')
+        for ip in $ips; do
+            if grep -qFx "$ip" "$target_file"; then
+                echo "$domain,$ip" >> "$output_file"
+            fi
+        done
+        printf "\r\e[K[-] Resolving domain/subdomain: %d of %s" "$processed" "$totaldoms"
+        ((processed++))
+    done < "$collected_file"
+    
+    if [ -s "$output_file" ]; then
+        sort -u "$output_file" > "${output_file}.sorted"
+        mv "${output_file}.sorted" "$output_file"
+        echo -e "\n[-] Found${green} $(wc -l < "$output_file") ${normal}subdomain(s) matching the IP addresses provided"
+        
+        # if less then 50 results, print to console
+
+  	local line_count=$(wc -l < "$output_file")
+  	if [ "$line_count" -lt 50 ]; then
+  		echo
+		column -s, -t $output_file
+  	fi
+        echo -e "\n${green}[+]${normal} Results saved to: $output_file"
+    else
+        echo -e "\n${yellow}[!]${normal} No matches found"
+    fi
+}
+
+certificate_scan() {
+    local target_file="$TEMP_DIR/processed-targets.txt"
+    local output_file="$TEMP_DIR/cert-domains.txt"
+    local ip domain root_domain
+    local count=0 total=$(wc -l < "$target_file")
+    
+    # Initialize files
+    mkdir -p "$TEMP_DIR"
+    : > "$output_file"
+    : > "$RESULTS_DIR/domains.txt"
+
+    echo -e "${green}[+]${normal} Checking SSL certificates..."
+    
+    while IFS= read -r ip; do
+        ((count++))
+        printf "\r\e[K[-] Processing IP Address: %d/%d - %s" "$count" "$total" "$ip"
+        
+        # Get certificate domains
+        timeout 5s openssl s_client -connect "$ip:443" </dev/null 2>/dev/null |
+        openssl x509 -noout -text 2>/dev/null |
+        awk -F 'DNS:|,' '/DNS:/ {for (i=2; i<=NF; i++) print $i}' |
+        tr -d ' ' | sed '/^$/d' |
+        while read -r domain; do
+            # Save full domain to cert-domains.txt
+            echo "$domain" >> "$output_file"
+            
+            # Extract root domain
+            root_domain=$(echo "$domain" | awk -F. '{
+                if (NF > 2) {
+                    if ($(NF-1) ~ /^(co|com|org|net|gov|ac|edu)$/ && $NF ~ /^(uk|au|nz|jp|in)$/) {
+                        print $(NF-2)"."$(NF-1)"."$NF
+                    }
+                    else if (NF == 4) {
+                        print $(NF-2)"."$(NF-1)"."$NF
+                    }
+                    else {
+                        print $(NF-1)"."$NF
+                    }
+                } else {
+                    print $0
+                }
+            }')
+            
+            # Save root domain to final output
+            echo "$root_domain" >> "$RESULTS_DIR/domains.txt"
+        done
+        
+    done < "$target_file"
+
+    # Add certificate domains to collection
+    cat $output_file >> "$TEMP_DIR/collected.txt"
+    # Deduplicate files
+    [ -s "$output_file" ] && sort -u "$output_file" -o "$output_file"
+    [ -s "$RESULTS_DIR/domains.txt" ] && sort -u "$RESULTS_DIR/domains.txt" -o "$RESULTS_DIR/domains.txt"
+
+    echo -e "\n[-] Root domains saved to: $RESULTS_DIR/domains.txt${normal}"
+}
+
+sublist3r_scan() {
+    local domain_file=$1
+    local output_file="$RESULTS_DIR/subdomains.txt"
+    local brute=$2  # true/false
+
+    echo -e "\n${green}[+]${normal} Performing subdomain enumeration.."
+    # Add bruteforce flag if enabled
+    if [ "$brute" = "true" ]; then
+        barg="-b"
+        echo -e "${yellow}[Bruteforce Enabled]${normal} This might take a while"
+    else
+        barg=""
+    fi
+
+    # Run Sublist3r with appropriate arguments
+    while IFS= read -r domain; do
+    	echo "[-] Processing Domain: $domain"
+        sublist3r -d "$domain" -o "$TEMP_DIR/sublist3r-results.tmp" $barg > /dev/null 2>&1 
+        cat "$TEMP_DIR/sublist3r-results.tmp" >> "$output_file"
+    done < "$domain_file"
+   
+    # Collect all domains and subdomains in a temp file
+    cat $domain_file >> "$TEMP_DIR/collected.txt"
+    
+    echo -e "\n${green}Domain enumeration results:${normal}"
+    echo -e "Root domains found:  $(wc -l < "$domain_file")"
+    if [ -s "$output_file" ]; then
+        sort -u "$output_file" > "${output_file}.sorted"
+        mv "${output_file}.sorted" "$output_file"
+        echo -e "Subdomains found:    $(wc -l < "$output_file")"
+        cat $output_file >> "$TEMP_DIR/collected.txt"
+    else
+    echo -e "Subdomains found:    0"
+    fi
+}
+
+main() {
+    banner
+    mkdir -p "$RESULTS_DIR" "$TEMP_DIR"
+    
+    # Process targets
+    process_targets "$TARGETS_FILE"
+    
+    if [ -n "$SUBDOMAINS_FILE" ]; then
+        resolve_subdomains "$SUBDOMAINS_FILE"
+    else
+        certificate_scan
+        [ -s "$TEMP_DIR/cert-domains.txt" ] || exit 1      
+        sublist3r_scan "$RESULTS_DIR/domains.txt" "$BRUTEFORCE"
+        [ -s "$TEMP_DIR/sublist3r-results.tmp" ] || exit 1
+        resolve_subdomains "$TEMP_DIR/collected.txt"
+    fi
+}
+
+# Argument parsing
+while getopts "s:t:bh" opt; do
+    case $opt in
+        s) SUBDOMAINS_FILE="$OPTARG" ;;
+        t) TARGETS_FILE="$OPTARG" ;;
+        b) BRUTEFORCE="-b" ;;
+        h) usage; exit 1;;
+        *) usage ;;
+    esac
 done
 
-if [[ $targets = "" ]]; then
-	usage
-	exit
-fi
+# why is usage appearing two times when selected -h?
 
-# Check if provided files exist:
-if [ ! -e $targets ]; then
-	banner
-	echo -e $red"[ERROR]"$normal" The "$targets" file does not exist." 
-	exit
-fi
+# Validate arguments
+[ -z "$TARGETS_FILE" ] && { usage; echo -e "${red}[ERROR]${normal} Target file (-t) is required!"; exit 1; }
+[ ! -f "$TARGETS_FILE" ] && { usage; echo -e "${red}[ERROR]${normal} Targets file not found!"; exit 1; }
+[ -n "$SUBDOMAINS_FILE" ] && [ ! -f "$SUBDOMAINS_FILE" ] && { usage; echo -e "${red}[ERROR]${normal} Subdomains file not found!"; exit 1; }
 
-# Create results folder
-if [ ! -d "./Subscoper-Results" ]; then
-	mkdir ./Subscoper-Results
-fi
-
-# Sanitize the file to remove Windows Carriage Returns
-cat $targets | sed -e 's/\r//g' > ./Subscoper-Results/.targets-hosts.tmp
-targets="./Subscoper-Results/.targets-hosts.tmp"
-
-
-havesubs() {
-
-	# Check if provided files exist:
-	if [ ! -e $subdomains ]; then
-		banner
-		echo -e $red"[ERROR]"$normal" The "$subdomains" file does not exist." 
-		exit
-	fi
-
-	total=$(wc -l < $subdomains)
-
-	# Run
-	echo -e "[+] Translating subdomains.. ("$total" found)\n"
-
-	# Clean up if script run and not terminate
-	if [[ -e ./Subscoper-Results/.Resolved.tmp ]]; then
-		rm ./Subscoper-Results/.Resolved.tmp
-	fi
-
-	for line in $(cat $subdomains); do
-
-		echo -ne "\r\e[KChecking: "$line
-		host $line >> ./Subscoper-Results/Resolved-dirty.tmp
-
-	done
-	sleep 1
-	# get rid of IPv6
-	echo -e "\n\n[+] Cleaning results.."
-	sed '/IPv6/d' ./Subscoper-Results/Resolved-dirty.tmp > ./Subscoper-Results/Resolved.tmp
-	rm ./Subscoper-Results/Resolved-dirty.tmp > /dev/null 2>&1
-	echo -e "[+] Matching results..\n"	
-	sleep 2
-	# counter reset
-	let i=1
-
-	IFS=$'\n'
-	total=$(wc -l < ./Subscoper-Results/Resolved.tmp)
-
-	for solved in $(cat ./Subscoper-Results/Resolved.tmp); do
-			
-		# increment counter
-		echo -ne "\r\e[KMatching: "$i" of "$total
-		
-		if [[ $solved == *address* ]]; then
-	    		
-			ipadr=$(echo $solved | cut -d " " -f4)	
-
-			if grep -Fq $ipadr $targets
-			then
-				plain=$(echo $solved | cut -d " " -f1)
-				echo $plain","$ipadr >> ./Subscoper-Results/.subdomains-in-scope.tmp
-			fi
-		fi
-		i=$((i+1))
-	done
-
-	echo -e "\n\n[+] Removing temporary files.."
-	rm ./Subscoper-Results/Resolved.tmp > /dev/null 2>&1
-	rm ./Subscoper-Results/.targets-hosts.tmp > /dev/null 2>&1
-	if [[ -f "./Subscoper-Results/.subdomains-in-scope.tmp" ]]; then
-		sort -u ./Subscoper-Results/.subdomains-in-scope.tmp > ./Subscoper-Results/subdomains-in-scope.csv
-	fi
-	rm ./Subscoper-Results/.subdomains-in-scope.tmp > /dev/null 2>&1
-	echo "[+] Finished"
-
-	if [[ -e ./Subscoper-Results/subdomains-in-scope.csv ]]; then
-		echo "[+] "$(wc -l < ./Subscoper-Results/subdomains-in-scope.csv)" subdomains are in scope."
-		echo "[-] Results saved in Subscoper-Results folder."
-	else
-		echo "[-] No subdomains found to be in scope."
-	fi
-
-}
-
-fullrun() {
-	
-	lister="1"
-	# Checking if sublist3r is installed:
-	if ! which sublist3r >/dev/null; then
-    	banner
-		echo -e $red"[ERROR]"$normal" Sublist3r not found (https://github.com/aboul3la/Sublist3r.git)"
-		echo "Enter the Sublist3r path (e.g. /opt/Sublist3r/sublist3r.py"
-		read file1
-		if [ -f "$file1" ]
-			then
-				echo "Sublist3r found."
-				lister="2"
-			else
-				echo "Couldn't find Sublist3r at the specified path, sorry."
-			exit
-		fi
-	fi
-	
-	tarnum=$(wc -l < $targets)
-	
-	if [[ $tarnum == 0 ]]; then
-		banner
-		echo -e $red"[ERROR]"$normal" No valid IP addresses found."
-		exit
-	fi
-
-	banner
-	echo "[+] Found "$tarnum" IP Address/es."
-	echo "[+] Checking Certificates for domains/subdomains..."
-	echo 
-	
-	touch ./Subscoper-Results/.subdomains-extract.tmp
-	
-	count=1
-	for ips in $(cat $targets); do
-		echo -ne "\r\e[KChecking: "$count" of "$tarnum" ("$ips")"
-		timeout 2s openssl s_client -connect $ips:443 >/dev/null 2>&1 > ./Subscoper-Results/.cert.tmp
-		if grep -q "CN" ./Subscoper-Results/.cert.tmp; then
-			openssl x509 -noout -text -in ./Subscoper-Results/.cert.tmp | grep DNS: | tr " " "\n" | cut -d ":" -f2 | cut -d "," -f1 >> ./Subscoper-Results/.subdomains-extract.tmp
-		fi
-		((count++))
-	done
-	
-	# Cleaning file for duplicates
-	rm ./Subscoper-Results/.cert.tmp > /dev/null 2>&1
-	sort -u ./Subscoper-Results/.subdomains-extract.tmp | grep . > ./Subscoper-Results/.subdomains-partial-list.tmp
-	rm ./Subscoper-Results/.subdomains-extract.tmp > /dev/null 2>&1
-	
-	# Creating list of Domains from the subdomains
-	awk -F "." '{
-		if ($NF =="uk" && $(NF-1) == "co")
-			print $(NF-2)"."$(NF-1)"."$NF;
-		else
-			print $(NF-1)"."$NF;
-		}' ./Subscoper-Results/.subdomains-partial-list.tmp > ./Subscoper-Results/.domains-list.tmp
-	
-	# Sort and unique Domains List:
-	sort -u ./Subscoper-Results/.domains-list.tmp > ./Subscoper-Results/domains-list.txt
-	domnum=$(wc -l < ./Subscoper-Results/domains-list.txt)
-	echo -e "\n\n[+] Retrieving list of subdomains..."
-
-	if [ $lister == "1" ]; then
-		# if -b is provided than do sublist3r bruteforce
-		touch ./Subscoper-Results/.subdomains-list-0.tmp
-		if [[ $brute == true ]]
-		then
-			echo "[-] Using brute-force option (this could take a while)..."
-			echo
-			i=1
-			for dom in $(cat ./Subscoper-Results/domains-list.txt); do
-				echo -ne "\r\e[KChecking: "$i" of "$domnum
-				sublist3r -d $dom -b -o ./Subscoper-Results/.subdomains-list-$i.tmp > /dev/null 2>&1
-				((i++))
-			done
-		else
-			echo "[-] Running passive checks on popular search engines (this can take a while)..."
-			echo
-			i=1
-			for dom in $(cat ./Subscoper-Results/domains-list.txt); do
-				echo -ne "\r\e[KChecking: "$i" of "$domnum
-				sublist3r -d $dom -o ./Subscoper-Results/.subdomains-list-$i.tmp > /dev/null 2>&1
-				((i++))
-			done
-		fi
-	elif [ $lister == "2" ]; then
-		# if -b is provided than do sublist3r bruteforce
-		touch ./Subscoper-Results/.subdomains-list-0.tmp
-		if [[ $brute == true ]]
-		then
-			echo "[-] Using brute-force option (this could take a while)..."
-			echo
-			i=1
-			for dom in $(cat ./Subscoper-Results/domains-list.txt); do
-				echo -ne "\r\e[KChecking: "$i" of "$domnum
-				$file1 -d $dom -b -o ./Subscoper-Results/.subdomains-list-$i.tmp > /dev/null 2>&1
-				((i++))
-			done
-		else
-			echo "[-] Running passive checks on popular search engines (this can take a while)..."
-			echo
-			i=1
-			for dom in $(cat ./Subscoper-Results/domains-list.txt); do
-				echo -ne "\r\e[KChecking: "$i" of "$domnum
-				$file1 -d $dom -o ./Subscoper-Results/.subdomains-list-$i.tmp > /dev/null 2>&1
-				((i++))
-			done
-		fi
-	else
-		exit
-	fi
-	
-	echo
-	echo
-	echo "[+] Consolidating results and removing temporary files..."
-	# Fixing sublist3r output when <BR> is retrieved
-	cat ./Subscoper-Results/.subdomains-list-*.tmp >> ./Subscoper-Results/.subdomains-partial-list.tmp
-	cat ./Subscoper-Results/.subdomains-partial-list.tmp | sed -e 's/<BR>/\n/g' | sed 's/^[*]//' | sed 's/^[.]//' | grep . >> ./Subscoper-Results/.subdomains-mixed.tmp
-	rm ./Subscoper-Results/.subdomains-list-*.tmp > /dev/null 2>&1
-	rm ./Subscoper-Results/.subdomains-partial-list.tmp > /dev/null 2>&1
-	rm ./Subscoper-Results/.domains-list.tmp > /dev/null 2>&1
-	
-	sort -u ./Subscoper-Results/.subdomains-mixed.tmp > ./Subscoper-Results/subdomains-list.txt
-	rm ./Subscoper-Results/.subdomains-mixed.tmp > /dev/null 2>&1
-	
-	# Calling secondary function to match the IPs with the subdomains
-	subdomains="./Subscoper-Results/subdomains-list.txt"
-	
-	if [[ $(wc -l < ./Subscoper-Results/subdomains-list.txt) -eq 0 ]]; then
-		echo "[+] All done for you. No domains/subdomains were found."
-		exit
-	fi
-	
-	havesubs
-	
-	echo
-	echo "[+] All done for you. Thanks for using subscoper.sh!"
-	
-}
-
-# Selector:
-if [[ $subdomains == "" ]]; then
-	fullrun
-else
-	banner
-	havesubs
-fi
-
-
+main

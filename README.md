@@ -68,6 +68,7 @@ Subdomains found:    32
 [+] Matching domains/subdomains with provided IP addresses/ranges..
 [-] Resolving domain/subdomain: 34 of 34
 [-] Found 2 subdomain(s) matching the IP addresses provided
+
 subdomain.domain.co.uk              10.10.10.1
 subdomain.domain.com                10.10.10.2
 
